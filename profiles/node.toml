@@ -1,0 +1,3 @@
+[stack]
+languages = ["javascript", "typescript"]
+test_command = "npm test"

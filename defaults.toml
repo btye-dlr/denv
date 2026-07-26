@@ -1,0 +1,15 @@
+version = "0.1.0"
+mode = "project"
+cognition_dir = ".denv/cognition"
+setup_completed = true
+
+[blueprint]
+source = "local-clone"
+semver = "0.1.0"
+
+[git]
+default_branch = "main"
+
+[stack]
+languages = []
+test_command = ""

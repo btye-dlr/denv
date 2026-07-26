@@ -1,0 +1,29 @@
+schema_version = 1
+
+[[decision]]
+id = "git.default_branch"
+prompt = "Default git branch"
+default = "main"
+store = "config"
+group = "git"
+
+[[decision]]
+id = "stack.languages"
+prompt = "Languages (comma-separated)"
+default = ""
+store = "config"
+group = "stack"
+
+[[decision]]
+id = "stack.test_command"
+prompt = "Test command"
+default = ""
+store = "config"
+group = "stack"
+
+[[decision]]
+id = "environment.editor"
+prompt = "Preferred editor"
+default = ""
+store = "environment"
+group = "environment"

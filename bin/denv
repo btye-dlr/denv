@@ -1,0 +1,32 @@
+#!/usr/bin/env python3
+"""Dependency-free launcher with an actionable Python version guard."""
+
+import os
+from pathlib import Path
+import shutil
+import sys
+
+
+MINIMUM = (3, 11)
+
+if sys.version_info < MINIMUM:
+    for name in ("python3.14", "python3.13", "python3.12", "python3.11"):
+        candidate = shutil.which(name)
+        if candidate:
+            os.execv(candidate, [candidate, str(Path(__file__).resolve()), *sys.argv[1:]])
+    required = ".".join(str(part) for part in MINIMUM)
+    current = f"{sys.version_info.major}.{sys.version_info.minor}"
+    print(
+        f"denv requires Python >= {required}; current python3 is {current}. "
+        "Install Python 3.11+ or place it on PATH.",
+        file=sys.stderr,
+    )
+    raise SystemExit(2)
+
+core = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(core / "src"))
+
+from denv.cli import main  # noqa: E402
+
+
+raise SystemExit(main())
