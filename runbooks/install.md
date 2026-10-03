@@ -47,7 +47,7 @@ rerun with elevated privileges.
 
 ```sh
 denv self-update            # fast-forward the current branch
-denv self-update --ref v0.2.0   # detach at a tag or branch
+denv self-update --ref v0.2.1   # detach at a tag or branch
 ```
 
 `self-update` refuses a checkout with uncommitted changes. It prints the

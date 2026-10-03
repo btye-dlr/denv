@@ -51,6 +51,7 @@ Never put credentials in an answers file.
 ## Commands
 
 ```text
+guide             print the working loop for humans and agents
 setup             interactive initialization and --reconfigure
 init              non-interactive initialization engine
 doctor            validate config, pin, cognition, specs, and secret hygiene

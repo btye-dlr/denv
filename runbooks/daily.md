@@ -81,7 +81,8 @@ The index keeps the finished spec.
 ## 9. Restart
 
 Read `AGENTS.md`, run `denv status`, then `denv session show`, then the linked
-spec. Nothing else is authoritative over that order.
+spec. Nothing else is authoritative over that order. `denv guide` prints this
+loop when the repository does not yet have `AGENTS.md`.
 
 ## Nested ROOTs
 

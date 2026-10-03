@@ -14,6 +14,7 @@ from .discover import (
     resolve_config,
 )
 from .doctor import core_identity, report
+from .guide import guide_text
 from .init import InitError, initialize, load_defaults
 from .install import InstallError, install, self_update, uninstall
 from .migrate import MigrationError, migrate_layout
@@ -49,9 +50,12 @@ def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(
         prog="denv",
         description="Clone-first development environment framework",
+        epilog="Run `denv guide` for the working loop.",
     )
     result.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     commands = result.add_subparsers(dest="command", required=True)
+
+    commands.add_parser("guide", help="print the working loop for humans and agents")
 
     init = commands.add_parser("init", help="non-interactively initialize a ROOT")
     _add_root(init)
@@ -237,6 +241,9 @@ def _local_core(root: Path) -> Path:
 def main(argv: Sequence[str] | None = None) -> int:
     args = parser().parse_args(argv)
     try:
+        if args.command == "guide":
+            print(guide_text())
+            return 0
         if args.command == "install":
             for line in install(args.system, args.bin_dir, args.force):
                 print(line)
