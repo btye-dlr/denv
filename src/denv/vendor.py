@@ -14,12 +14,23 @@ VENDOR_ASSETS = (
     "VERSION",
     "AGENTS.md",
     ".denv/cognition",
+    ".denv/specs",
     "bin",
     "defaults.toml",
     "profiles",
     "setup",
     "src",
 )
+
+
+def git_metadata(core: Path) -> dict[str, Any]:
+    """Return the HEAD SHA and dirty flag for a checkout, or None SHA if not git."""
+    return _git_metadata(core)
+
+
+def git_metadata(core: Path) -> dict[str, Any]:
+    """Return the HEAD SHA and dirty flag for a checkout, or None SHA if not git."""
+    return _git_metadata(core)
 
 
 def _git_metadata(core: Path) -> dict[str, Any]:

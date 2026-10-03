@@ -13,13 +13,24 @@ from .discover import (
     read_config,
     resolve_config,
 )
-from .doctor import report
+from .doctor import core_identity, report
 from .init import InitError, initialize, load_defaults
+from .install import InstallError, install, self_update, uninstall
 from .migrate import MigrationError, migrate_layout
 from .ops_seed import has_legacy_ops, seed_ops
 from .paths import config_path, local_dir
 from .secrets import is_secret_key
 from .setup import interactive_setup
+from .specs import (
+    SpecError,
+    begin_session,
+    create_spec,
+    end_session,
+    format_session,
+    format_spec_list,
+    read_session,
+    transition_status,
+)
 from .vendor import refresh_pin
 
 
@@ -53,7 +64,10 @@ def parser() -> argparse.ArgumentParser:
     _add_root(setup)
     setup.add_argument("--reconfigure", action="store_true")
 
-    doctor = commands.add_parser("doctor", help="validate an instance")
+    doctor = commands.add_parser(
+        "doctor",
+        help="validate config, pin, cognition, specs, and secret hygiene",
+    )
     _add_root(doctor)
 
     status = commands.add_parser("status", help="show resolved instance status")
@@ -87,7 +101,61 @@ def parser() -> argparse.ArgumentParser:
         "migrate-layout", help="explicitly migrate a v0.1 instance layout"
     )
     _add_root(migrate)
+
+    spec = commands.add_parser("spec", help="create, list, and transition specs")
+    spec_commands = spec.add_subparsers(dest="spec_command", required=True)
+    new_spec = spec_commands.add_parser("new", help="draft a light spec")
+    new_spec.add_argument("title", help="single-line spec title")
+    _add_root(new_spec)
+    list_specs = spec_commands.add_parser("list", help="list specs from the index")
+    _add_root(list_specs)
+    set_status = spec_commands.add_parser("status", help="transition a spec status")
+    set_status.add_argument("spec_id")
+    set_status.add_argument(
+        "status",
+        choices=("draft", "approved", "active", "done", "abandoned"),
+    )
+    _add_root(set_status)
+
+    session = commands.add_parser(
+        "session", help="show, begin, or end the session packet goal"
+    )
+    session_commands = session.add_subparsers(dest="session_command", required=True)
+    show = session_commands.add_parser("show", help="show goal and linked spec")
+    _add_root(show)
+    begin = session_commands.add_parser(
+        "begin", help="set the goal and link an approved spec"
+    )
+    begin.add_argument("--goal", required=True, help="single-line session goal")
+    begin.add_argument("--spec", required=True, help="spec id or filename stem")
+    _add_root(begin)
+    end = session_commands.add_parser("end", help="return the session to idle")
+    _add_root(end)
+
+    install_cmd = commands.add_parser(
+        "install", help="symlink bin/denv onto PATH (user or --system)"
+    )
+    _add_bin_dir(install_cmd)
+    install_cmd.add_argument(
+        "--force", action="store_true", help="replace a foreign symlink"
+    )
+    uninstall_cmd = commands.add_parser(
+        "uninstall", help="remove the denv symlink installed by this checkout"
+    )
+    _add_bin_dir(uninstall_cmd)
+    update = commands.add_parser(
+        "self-update", help="update this checkout with git (ff-only or --ref)"
+    )
+    update.add_argument("--ref", help="tag or branch to check out instead of pulling")
     return result
+
+
+def _add_bin_dir(parser: argparse.ArgumentParser) -> None:
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+        "--system", action="store_true", help="use /usr/local/bin instead of ~/.local/bin"
+    )
+    group.add_argument("--bin-dir", help="explicit bin directory")
 
 
 def _load_answers(path: str | None) -> dict[str, Any]:
@@ -148,6 +216,7 @@ def _status(start: Path) -> dict[str, Any]:
         "root": str(root),
         "chain": [str(item) for item in chain],
         "pin": pin,
+        "core": core_identity(root),
         "cognition_present": (root / ".denv/cognition").is_dir(),
         "session_packet_present": (
             root / ".denv/cognition/sessions/CURRENT.md"
@@ -168,6 +237,17 @@ def _local_core(root: Path) -> Path:
 def main(argv: Sequence[str] | None = None) -> int:
     args = parser().parse_args(argv)
     try:
+        if args.command == "install":
+            for line in install(args.system, args.bin_dir, args.force):
+                print(line)
+            return 0
+        if args.command == "uninstall":
+            print(uninstall(args.system, args.bin_dir))
+            return 0
+        if args.command == "self-update":
+            for line in self_update(args.ref):
+                print(line)
+            return 0
         start = _root(getattr(args, "root", None))
         if args.command == "init":
             config = initialize(
@@ -227,7 +307,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print("Legacy ops/ layout detected; run `denv migrate-layout`.")
                 return 0
             created = seed_ops(root)
-            print(f"Seeded {len(created)} missing cognition file(s) at {root}")
+            print(f"Seeded {len(created)} missing template file(s) at {root}")
             return 0
         if args.command in {"pin-refresh", "vendor-refresh"}:
             root = nearest_root(start)
@@ -248,10 +328,38 @@ def main(argv: Sequence[str] | None = None) -> int:
             refresh_pin(root, core)
             print("; ".join(messages) if messages else "Layout already current")
             return 0
+        if args.command == "spec":
+            root = nearest_root(start)
+            if args.spec_command == "new":
+                created = create_spec(root, args.title)
+                print(f"Created {created.relative_to(root)} (draft)")
+                return 0
+            if args.spec_command == "list":
+                print(format_spec_list(root))
+                return 0
+            if args.spec_command == "status":
+                updated = transition_status(root, args.spec_id, args.status)
+                print(f"Updated {updated.id} status to {args.status}")
+                return 0
+        if args.command == "session":
+            root = nearest_root(start)
+            if args.session_command == "show":
+                print(format_session(read_session(root)))
+                return 0
+            if args.session_command == "begin":
+                linked = begin_session(root, args.goal, args.spec)
+                print(f"Session active at {root}; spec {linked.id} ({linked.status})")
+                return 0
+            if args.session_command == "end":
+                end_session(root)
+                print(f"Session idle at {root}")
+                return 0
     except (
         DiscoveryError,
         InitError,
+        InstallError,
         MigrationError,
+        SpecError,
         KeyError,
         OSError,
         ValueError,
@@ -266,8 +374,12 @@ def _format_status(value: dict[str, Any]) -> str:
     lines = [
         f"ROOT: {value['root']}",
         f"Chain: {' -> '.join(value['chain'])}",
+        f"Pin version: {pin.get('semver') or 'unknown'}",
+        f"Pin version: {pin.get('semver') or 'unknown'}",
         f"Pin SHA: {pin.get('sha') or 'uncommitted'}",
         f"Pin dirty: {pin.get('dirty', 'unknown')}",
+        _format_core(value.get("core")),
+        _format_core(value.get("core")),
         "Cognition: "
         + ("present" if value["cognition_present"] else "missing"),
         "Session packet: "
@@ -276,3 +388,21 @@ def _format_status(value: dict[str, Any]) -> str:
     if value["migration_hint"]:
         lines.append(f"Migration: {value['migration_hint']}")
     return "\n".join(lines)
+
+
+def _format_core(core: dict[str, Any] | None) -> str:
+    if core is None:
+        return "Core: unknown (no .denv/local/env.json)"
+    if not core.get("present"):
+        return f"Core: {core['path']} (missing VERSION)"
+    sha = core.get("sha") or "uncommitted"
+    return f"Core: {core['semver']} {sha} at {core['path']}"
+
+
+def _format_core(core: dict[str, Any] | None) -> str:
+    if core is None:
+        return "Core: unknown (no .denv/local/env.json)"
+    if not core.get("present"):
+        return f"Core: {core['path']} (missing VERSION)"
+    sha = core.get("sha") or "uncommitted"
+    return f"Core: {core['semver']} {sha} at {core['path']}"

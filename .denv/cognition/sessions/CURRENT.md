@@ -7,6 +7,10 @@
 
 No active goal.
 
+## Spec
+
+None.
+
 ## Constraints
 
 - List governing principles and accepted ADRs.

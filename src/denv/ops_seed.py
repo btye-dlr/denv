@@ -4,6 +4,7 @@ from pathlib import Path
 import shutil
 
 from .paths import CORE_ROOT
+from .specs import resolve_specs_dir
 
 
 def seed_ops(root: Path) -> list[Path]:
@@ -15,8 +16,17 @@ def seed_ops(root: Path) -> list[Path]:
         shutil.copy2(agents_source, agents_destination)
         created.append(agents_destination)
 
-    source = CORE_ROOT / ".denv/cognition"
-    destination_root = root / ".denv/cognition"
+    created.extend(_seed_missing(CORE_ROOT / ".denv/cognition", root / ".denv/cognition"))
+    specs_dir, error = resolve_specs_dir(root)
+    if error is None:
+        created.extend(_seed_missing(CORE_ROOT / ".denv/specs", specs_dir))
+    return created
+
+
+def _seed_missing(source: Path, destination_root: Path) -> list[Path]:
+    created: list[Path] = []
+    if not source.exists():
+        return created
     for path in source.rglob("*"):
         relative = path.relative_to(source)
         destination = destination_root / relative
@@ -31,7 +41,7 @@ def seed_ops(root: Path) -> list[Path]:
 
 
 def required_ops_paths(root: Path) -> list[Path]:
-    return [
+    paths = [
         root / "AGENTS.md",
         root / ".denv/cognition/PRINCIPLES.md",
         root / ".denv/cognition/WAYS_OF_WORKING.md",
@@ -39,6 +49,10 @@ def required_ops_paths(root: Path) -> list[Path]:
         root / ".denv/cognition/memory/PROJECT.md",
         root / ".denv/cognition/sessions/CURRENT.md",
     ]
+    specs_dir, error = resolve_specs_dir(root)
+    if error is None:
+        paths.append(specs_dir / "INDEX.md")
+    return paths
 
 
 def has_legacy_ops(root: Path) -> bool:

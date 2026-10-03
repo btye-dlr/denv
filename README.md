@@ -17,6 +17,10 @@ Python 3.11 or newer. There is no pip, venv, build, or dependency install.
 The launcher will use an available `python3.11`–`python3.14` when the default
 `python3` is older.
 
+To call `denv` from any directory, run `./bin/denv install` once (or
+`--system`). See [runbooks/install.md](runbooks/install.md) for update and
+rollback, and [runbooks/daily.md](runbooks/daily.md) for the working loop.
+
 ## Clone, then configure
 
 ```sh
@@ -49,12 +53,21 @@ Never put credentials in an answers file.
 ```text
 setup             interactive initialization and --reconfigure
 init              non-interactive initialization engine
-doctor            validate config, pin, cognition pack, and secret hygiene
+doctor            validate config, pin, cognition, specs, and secret hygiene
 status            show nearest ROOT, inheritance chain, pin, and cognition
 resolve           show effective config and per-key provenance
 config get|set    access nearest tracked config; secret-shaped keys are blocked
-sync-ops          add missing cognition templates without overwriting content
+sync-ops          add missing cognition and spec templates without overwriting
 pin-refresh       refresh the core identity recorded in .denv/pin.json
+spec new          draft a single-file spec; does not approve it
+spec list         list specs from the index
+spec status       move a spec through draft, approved, active, done, abandoned
+session show      show the goal and linked spec for the nearest ROOT
+session begin     set the goal and link an approved or active spec
+session end       return the session packet to idle
+install           symlink bin/denv onto PATH (user or --system)
+uninstall         remove that symlink when it points at this checkout
+self-update       update this checkout with git (ff-only or --ref <tag>)
 vendor-refresh    deprecated alias for pin-refresh during transition
 migrate-layout    explicitly move a legacy ops/vendor instance
 ```
@@ -81,6 +94,8 @@ denv/
       decisions/INDEX.md
       memory/PROJECT.md
       sessions/CURRENT.md
+    specs/
+      INDEX.md                # specs are added with `denv spec new`
     config.json               # added by setup
     pin.json                  # added by setup
     local/                    # added by setup; gitignored
@@ -91,8 +106,8 @@ coding agents already discover it there. If `AGENTS.md` exists, denv leaves it
 unchanged. It does not create `CLAUDE.md`, `.cursor/`, adapter files, example
 ADRs, or a second copied framework tree.
 
-Track `config.json`, `pin.json`, and `cognition/`. `.denv/local/` contains
-`env.json`, `secrets.json`, and `USER.md` and stays gitignored.
+Track `config.json`, `pin.json`, `cognition/`, and `specs/`. `.denv/local/`
+contains `env.json`, `secrets.json`, and `USER.md` and stays gitignored.
 
 ## Configuration semantics
 
@@ -104,6 +119,18 @@ Track `config.json`, `pin.json`, and `cognition/`. `.denv/local/` contains
 - An umbrella ROOT is included and stops further ascent.
 
 `denv resolve --json` shows both the effective value and its source.
+
+## Specs
+
+Tracked specs live under `.denv/specs/` (`specs_dir` in config). `denv spec new`
+drafts one markdown file. An active session goal must name a spec whose status
+is `approved` or `active`; `doctor` fails otherwise. An idle goal
+(`No active goal.`) does not need a spec.
+
+Reference companion files from frontmatter when one file is no longer enough.
+Set `rigor: workflow` and declare `artifacts.plan` and `artifacts.tasks` when
+the change needs a plan and a task list. Humans approve a spec with
+`denv spec status <id> approved`.
 
 ## LLM cognition boundary
 

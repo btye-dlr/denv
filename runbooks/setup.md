@@ -45,4 +45,5 @@ then migrate explicitly:
 
 The command moves `ops/` to `.denv/cognition/`, removes the generated vendor
 snapshot, writes `pin.json`, updates legacy config keys, and rewrites
-`AGENTS.md` only when it exactly matches the old stock template.
+`AGENTS.md` only when it exactly matches the old stock template. It also adds
+a missing `.denv/specs/INDEX.md` without overwriting existing files.

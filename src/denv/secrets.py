@@ -33,14 +33,25 @@ def find_secret_keys(value: Any, prefix: str = "") -> list[str]:
     return found
 
 
-def scan_markdown(root: Path) -> list[Path]:
+def scan_markdown(root: Path, extra_dirs: list[Path] | None = None) -> list[Path]:
     findings: list[Path] = []
+    roots: list[Path] = []
     cognition = root / ".denv/cognition"
     if not cognition.is_dir():
         cognition = root / "ops"
-    if not cognition.is_dir():
-        return findings
-    for path in cognition.rglob("*.md"):
+    if cognition.is_dir():
+        roots.append(cognition)
+    for extra in extra_dirs or []:
+        if extra.is_dir() and extra.resolve() not in {path.resolve() for path in roots}:
+            roots.append(extra)
+    for base in roots:
+        findings.extend(_scan_tree(base))
+    return findings
+
+
+def _scan_tree(base: Path) -> list[Path]:
+    findings: list[Path] = []
+    for path in base.rglob("*.md"):
         try:
             if SECRET_ASSIGNMENT_RE.search(path.read_text(encoding="utf-8")):
                 findings.append(path)
